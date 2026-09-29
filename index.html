@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TextForge — Text to PDF Converter</title>
+<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --brand: #6366f1;
+    --brand2: #ec4899;
+  }
+  html, body { height: 100%; }
+  body {
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1200px 800px at 10% -10%, rgba(99,102,241,0.18), transparent 60%),
+      radial-gradient(1000px 700px at 110% 10%, rgba(236,72,153,0.15), transparent 60%),
+      linear-gradient(180deg, #0b1020 0%, #0a0f1e 100%);
+    color: #e5e7eb;
+    min-height: 100vh;
+  }
+  .glass {
+    background: rgba(255,255,255,0.04);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .glass-strong {
+    background: rgba(17, 24, 39, 0.55);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .brand-gradient {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
+  }
+  .brand-text {
+    background: linear-gradient(135deg, #a5b4fc, #f0abfc);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 10px; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+  /* Range slider */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 999px;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 18px; width: 18px;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 8px rgba(99,102,241,0.5);
+  }
+  input[type="range"]::-moz-range-thumb {
+    height: 18px; width: 18px;
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid #fff;
+  }
+
+  /* Toggle */
+  .toggle {
+    position: relative; width: 40px; height: 22px;
+    background: rgba(255,255,255,0.14); border-radius: 999px;
+    transition: background .2s; cursor: pointer; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 18px; height: 18px; border-radius: 999px; background: #fff;
+    transition: transform .2s;
+  }
+  .toggle.on { background: linear-gradient(135deg, #6366f1, #ec4899); }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* Color input */
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+    background: none; border: none; padding: 0;
+    width: 100%; height: 38px; cursor: pointer;
+  }
+  input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  input[type="color"]::-webkit-color-swatch { border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; }
+  input[type="color"]::-moz-color-swatch { border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; }
+
+  /* Selects & inputs */
+  .field {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.10);
+    color: #e5e7eb;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 14px;
+    transition: border-color .15s, background .15s;
+  }
+  .field:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.7);
+    background: rgba(255,255,255,0.07);
+  }
+  select.field option { background: #111827; color: #e5e7eb; }
+
+  /* Textarea */
+  .editor {
+    width: 100%; min-height: 340px;
+    background: rgba(0,0,0,0.25);
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #f3f4f6;
+    border-radius: 14px;
+    padding: 18px 20px;
+    resize: vertical;
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 14px;
+    line-height: 1.7;
+    transition: border-color .15s;
+  }
+  .editor:focus {
+    outline: none;
+    border-color: rgba(139, 92, 246, 0.7);
+    box-shadow: 0 0 0 4px rgba(139,92,246,0.12);
+  }
+
+  /* Preview */
+  .preview-wrap {
+    background:
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.02) 0 10px, transparent 10px 20px),
+      #0f172a;
+    border-radius: 14px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+    overflow: auto;
+    max-height: 720px;
+  }
+  .page {
+    background: #ffffff;
+    color: #111;
+    margin: 0 auto 16px auto;
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.6);
+    position: relative;
+    overflow: hidden;
+    border-radius: 4px;
+  }
+  .page .content {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .page .header, .page .footer {
+    position: absolute; left: 0; right: 0;
+    text-align: center; font-size: 10px; color: #666;
+  }
+  .page .header { top: 12px; }
+  .page .footer { bottom: 12px; }
+
+  /* Buttons */
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+    transition: transform .15s, box-shadow .15s, background .15s;
+    cursor: pointer; border: 1px solid transparent;
+  }
+  .btn-primary {
+    color: white;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899);
+    box-shadow: 0 10px 30px -10px rgba(139,92,246,0.6);
+  }
+  .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 15px 40px -12px rgba(236,72,153,0.6); }
+  .btn-ghost {
+    color: #e5e7eb;
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+  }
+  .btn-ghost:hover { background: rgba(255,255,255,0.10); }
+
+  /* Chip */
+  .chip {
+    padding: 6px 10px; border-radius: 8px; font-size: 12px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+
+  /* Section label */
+  .label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #a5b4fc; font-weight: 700; margin-bottom: 8px; display: block;
+  }
+
+  /* Segmented */
+  .seg {
+    display: inline-flex; padding: 4px; border-radius: 10px;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+    gap: 2px;
+  }
+  .seg button {
+    padding: 6px 12px; border-radius: 7px; font-size: 12px;
+    color: #cbd5e1; transition: background .15s, color .15s;
+  }
+  .seg button.active {
+    background: linear-gradient(135deg, #6366f1, #ec4899);
+    color: white; font-weight: 600;
+  }
+
+  /* Card */
+  .card {
+    border-radius: 16px; padding: 18px;
+  }
+
+  /* Animated blob */
+  .blob {
+    position: absolute; border-radius: 50%; filter: blur(60px); opacity: 0.35;
+    pointer-events: none; z-index: 0;
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: rgba(17,24,39,0.9); border: 1px solid rgba(255,255,255,0.1);
+    color: #fff; padding: 12px 20px; border-radius: 10px; font-size: 14px;
+    opacity: 0; transition: all .3s; z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  details[open] .chev { transform: rotate(180deg); }
+  .chev { transition: transform .2s; }
+</style>
+</head>
+<body class="antialiased">
+
+<!-- Decorative blobs -->
+<div class="blob" style="width:400px;height:400px;background:#6366f1;top:-100px;left:-100px;"></div>
+<div class="blob" style="width:400px;height:400px;background:#ec4899;top:200px;right:-150px;"></div>
+
+<!-- Navbar -->
+<header class="relative z-10">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl brand-gradient flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-white"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white leading-none">TextForge</h1>
+        <p class="text-xs text-gray-400">Text → PDF Converter</p>
+      </div>
+    </div>
+    <div class="hidden md:flex items-center gap-2">
+      <span class="chip"><span class="w-2 h-2 rounded-full bg-emerald-400"></span> Runs 100% in browser</span>
+      <a href="#" class="chip hover:bg-white/10 transition"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M12 2v20M2 12h20"/></svg> New Doc</a>
+    </div>
+  </nav>
+</header>
+
+<!-- Hero -->
+<section class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-8 text-center">
+  <h2 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight">
+    Convert <span class="brand-text">Text to PDF</span> Instantly
+  </h2>
+  <p class="mt-4 text-gray-400 max-w-2xl mx-auto text-base sm:text-lg">
+    A powerful, privacy-first PDF generator with rich customization — fonts, layouts, colors, margins, headers, page numbers and more.
+  </p>
+</section>
+
+<!-- Main App -->
+<main class="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    <!-- Left: Editor + Settings -->
+    <div class="lg:col-span-7 space-y-6">
+      <!-- Editor Card -->
+      <div class="glass-strong card">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <div class="flex items-center gap-2">
+            <span class="label mb-0">Your Text</span>
+            <span id="charCount" class="chip">0 chars • 0 words</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="pasteBtn" class="btn btn-ghost !py-2 !px-3 !text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+              Paste
+            </button>
+            <button id="sampleBtn" class="btn btn-ghost !py-2 !px-3 !text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Sample
+            </button>
+            <button id="clearBtn" class="btn btn-ghost !py-2 !px-3 !text-xs">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/></svg>
+              Clear
+            </button>
+          </div>
+        </div>
+        <textarea id="textInput" class="editor" placeholder="Start typing or paste your text here..."></textarea>
+        <div class="mt-3 flex items-center gap-2">
+          <label class="btn btn-ghost !py-2 !px-3 !text-xs cursor-pointer">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload .txt
+            <input id="fileInput" type="file" accept=".txt,text/plain" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Settings Card -->
+      <div class="glass-strong card space-y-5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-indigo-400"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            Customization
+          </h3>
+          <button id="resetBtn" class="btn btn-ghost !py-2 !px-3 !text-xs">Reset</button>
+        </div>
+
+        <!-- Page Setup -->
+        <details open class="border border-white/10 rounded-xl">
+          <summary class="px-4 py-3 flex items-center justify-between">
+            <span class="font-semibold text-white text-sm">📄 Page Setup</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 chev"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Page Size</label>
+              <select id="pageSize" class="field">
+                <option value="a4">A4 (210 × 297 mm)</option>
+                <option value="letter">Letter (8.5 × 11 in)</option>
+                <option value="legal">Legal (8.5 × 14 in)</option>
+                <option value="a3">A3 (297 × 420 mm)</option>
+                <option value="a5">A5 (148 × 210 mm)</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Orientation</label>
+              <div class="seg w-full">
+                <button data-orient="portrait" class="orient-btn active flex-1">Portrait</button>
+                <button data-orient="landscape" class="orient-btn flex-1">Landscape</button>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <label class="label">Margins (mm) <span id="marginVal" class="text-gray-400 normal-case tracking-normal font-normal">20</span></label>
+              <input id="margin" type="range" min="5" max="60" value="20" />
+            </div>
+          </div>
+        </details>
+
+        <!-- Typography -->
+        <details open class="border border-white/10 rounded-xl">
+          <summary class="px-4 py-3 flex items-center justify-between">
+            <span class="font-semibold text-white text-sm">🎨 Typography</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 chev"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="label">Font Family</label>
+              <select id="fontFamily" class="field">
+                <option value="helvetica">Helvetica</option>
+                <option value="times">Times New Roman</option>
+                <option value="courier">Courier</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Font Style</label>
+              <select id="fontStyle" class="field">
+                <option value="normal">Normal</option>
+                <option value="bold">Bold</option>
+                <option value="italic">Italic</option>
+                <option value="bolditalic">Bold Italic</option>
+              </select>
+            </div>
+            <div>
+              <label class="label">Font Size <span id="fontSizeVal" class="text-gray-400 normal-case tracking-normal font-normal">12 pt</span></label>
+              <input id="fontSize" type="range" min="8" max="48" value="12" />
+            </div>
+            <div>
+              <label class="label">Line Spacing <span id="lineSpacingVal" class="text-gray-400 normal-case tracking-normal font-normal">1.5×</span></label>
+              <input id="lineSpacing" type="range" min="1" max="3" step="0.1" value="1.5" />
+            </div>
+            <div>
+              <label class="label">Text Alignment</label>
+              <div class="seg w-full">
+                <button data-align="left" class="align-btn active flex-1">Left</button>
+                <button data-align="center" class="align-btn flex-1">Center</button>
+                <button data-align="right" class="align-btn flex-1">Right</button>
+                <button data-align="justify" class="align-btn flex-1">Justify</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="label">Text Color</label>
+                <input id="textColor" type="color" value="#111111" />
+              </div>
+              <div>
+                <label class="label">Background</label>
+                <input id="bgColor" type="color" value="#ffffff" />
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Document -->
+        <details class="border border-white/10 rounded-xl">
+          <summary class="px-4 py-3 flex items-center justify-between">
+            <span class="font-semibold text-white text-sm">📋 Document</span>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 chev"><polyline points="6 9 12 15 18 9"/></svg>
+          </summary>
+          <div class="px-4 pb-4 pt-1 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="sm:col-span-2">
+              <label class="label">Document Title</label>
+              <input id="docTitle" type="text" class="field" placeholder="My Document" value="My Document" />
+            </div>
+            <div>
+              <label class="label">Author</label>
+              <input id="docAuthor" type="text" class="field" placeholder="Anonymous" />
+            </div>
+            <div>
+              <label class="label">File Name</label>
+              <input id="fileName" type="text" class="field" placeholder="document" value="document" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="label">Header Text (optional)</label>
+              <input id="headerText" type="text" class="field" placeholder="Leave empty for no header" />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="label">Footer Text (optional)</label>
+              <input id="footerText" type="text" class="field" placeholder="Leave empty for no footer" />
+            </div>
+            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 sm:col-span-2">
+              <div>
+                <div class="text-sm font-semibold text-white">Page Numbers</div>
+                <div class="text-xs text-gray-400">Show page x of y at the bottom</div>
+              </div>
+              <div id="pageNumToggle" class="toggle on" data-on="true"></div>
+            </div>
+            <div class="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10 sm:col-span-2">
+              <div>
+                <div class="text-sm font-semibold text-white">Password Protect</div>
+                <div class="text-xs text-gray-400">Require password to open the PDF</div>
+              </div>
+              <div id="passToggle" class="toggle" data-on="false"></div>
+            </div>
+            <div id="passwordWrap" class="sm:col-span-2 hidden">
+              <label class="label">Password</label>
+              <input id="password" type="text" class="field" placeholder="Enter password" />
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- Right: Live Preview -->
+    <div class="lg:col-span-5">
+      <div class="glass-strong card sticky top-4">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-pink-400"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            Live Preview
+          </h3>
+          <span id="pageCount" class="chip">1 page</span>
+        </div>
+        <div id="previewWrap" class="preview-wrap">
+          <!-- pages injected here -->
+        </div>
+        <div class="mt-4 flex flex-col sm:flex-row gap-3">
+          <button id="downloadBtn" class="btn btn-primary flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download PDF
+          </button>
+          <button id="printBtn" class="btn btn-ghost flex-1">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section class="mt-20">
+    <div class="text-center mb-10">
+      <h3 class="text-3xl sm:text-4xl font-extrabold">Why <span class="brand-text">TextForge</span>?</h3>
+      <p class="text-gray-400 mt-2">Everything you need to make polished PDFs — no signup, no upload.</p>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div class="glass card">
+        <div class="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-white"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+        <h4 class="font-bold text-white">Private & Secure</h4>
+        <p class="text-sm text-gray-400 mt-1">Files never leave your device. Everything runs locally.</p>
+      </div>
+      <div class="glass card">
+        <div class="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-white"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+        </div>
+        <h4 class="font-bold text-white">Lightning Fast</h4>
+        <p class="text-sm text-gray-400 mt-1">Instant generation with a real-time live preview.</p>
+      </div>
+      <div class="glass card">
+        <div class="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-white"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/></svg>
+        </div>
+        <h4 class="font-bold text-white">Full Customization</h4>
+        <p class="text-sm text-gray-400 mt-1">Fonts, sizes, colors, margins, headers — full control.</p>
+      </div>
+      <div class="glass card">
+        <div class="w-11 h-11 rounded-xl brand-gradient flex items-center justify-center mb-3">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5 text-white"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <h4 class="font-bold text-white">Multi-Page</h4>
+        <p class="text-sm text-gray-400 mt-1">Automatic pagination with headers, footers, and numbers.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="mt-16 text-center text-gray-500 text-sm">
+    <p>Built with ❤ using jsPDF · TextForge © 2026</p>
+  </footer>
+</main>
+
+<div id="toast" class="toast"></div>
+
+<script>
+  const { jsPDF } = window.jspdf;
+
+  // ============ State ============
+  const state = {
+    text: '',
+    pageSize: 'a4',
+    orientation: 'portrait',
+    margin: 20,
+    fontFamily: 'helvetica',
+    fontStyle: 'normal',
+    fontSize: 12,
+    lineSpacing: 1.5,
+    align: 'left',
+    textColor: '#111111',
+    bgColor: '#ffffff',
+    title: 'My Document',
+    author: '',
+    fileName: 'document',
+    headerText: '',
+    footerText: '',
+    pageNumbers: true,
+    password: false,
+    passwordValue: ''
+  };
+
+  // ============ DOM ============
+  const el = (id) => document.getElementById(id);
+  const textInput = el('textInput');
+  const preview = el('previewWrap');
+  const toast = el('toast');
+
+  // ============ Helpers ============
+  function showToast(msg) {
+    toast.textContent = msg;
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 2200);
+  }
+
+  function updateCharCount() {
+    const t = state.text;
+    const chars = t.length;
+    const words = t.trim() ? t.trim().split(/\s+/).length : 0;
+    el('charCount').textContent = `${chars.toLocaleString()} chars • ${words.toLocaleString()} words`;
+  }
+
+  // Page dimensions in mm
+  const PAGE_DIMS = {
+    a4: [210, 297],
+    letter: [215.9, 279.4],
+    legal: [215.9, 355.6],
+    a3: [297, 420],
+    a5: [148, 210]
+  };
+
+  function getPageDims() {
+    const [w, h] = PAGE_DIMS[state.pageSize];
+    return state.orientation === 'portrait' ? { w, h } : { w: h, h: w };
+  }
+
+  // ============ Bind Inputs ============
+  textInput.addEventListener('input', () => { state.text = textInput.value; updateCharCount(); renderPreview(); });
+
+  el('pageSize').addEventListener('change', e => { state.pageSize = e.target.value; renderPreview(); });
+  el('margin').addEventListener('input', e => { state.margin = +e.target.value; el('marginVal').textContent = e.target.value; renderPreview(); });
+  el('fontFamily').addEventListener('change', e => { state.fontFamily = e.target.value; renderPreview(); });
+  el('fontStyle').addEventListener('change', e => { state.fontStyle = e.target.value; renderPreview(); });
+  el('fontSize').addEventListener('input', e => { state.fontSize = +e.target.value; el('fontSizeVal').textContent = e.target.value + ' pt'; renderPreview(); });
+  el('lineSpacing').addEventListener('input', e => { state.lineSpacing = +e.target.value; el('lineSpacingVal').textContent = (+e.target.value).toFixed(1) + '×'; renderPreview(); });
+  el('textColor').addEventListener('input', e => { state.textColor = e.target.value; renderPreview(); });
+  el('bgColor').addEventListener('input', e => { state.bgColor = e.target.value; renderPreview(); });
+  el('docTitle').addEventListener('input', e => { state.title = e.target.value; });
+  el('docAuthor').addEventListener('input', e => { state.author = e.target.value; });
+  el('fileName').addEventListener('input', e => { state.fileName = e.target.value; });
+  el('headerText').addEventListener('input', e => { state.headerText = e.target.value; renderPreview(); });
+  el('footerText').addEventListener('input', e => { state.footerText = e.target.value; renderPreview(); });
+  el('password').addEventListener('input', e => { state.passwordValue = e.target.value; });
+
+  // Segmented buttons
+  document.querySelectorAll('.orient-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.orient-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.orientation = b.dataset.orient;
+      renderPreview();
+    });
+  });
+  document.querySelectorAll('.align-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.align-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      state.align = b.dataset.align;
+      renderPreview();
+    });
+  });
+
+  // Toggles
+  el('pageNumToggle').addEventListener('click', function() {
+    const on = this.dataset.on !== 'true';
+    this.dataset.on = on;
+    this.classList.toggle('on', on);
+    state.pageNumbers = on;
+    renderPreview();
+  });
+  el('passToggle').addEventListener('click', function() {
+    const on = this.dataset.on !== 'true';
+    this.dataset.on = on;
+    this.classList.toggle('on', on);
+    state.password = on;
+    el('passwordWrap').classList.toggle('hidden', !on);
+  });
+
+  // Buttons
+  el('clearBtn').addEventListener('click', () => {
+    if (!state.text || confirm('Clear the editor?')) {
+      textInput.value = ''; state.text = ''; updateCharCount(); renderPreview();
+    }
+  });
+  el('pasteBtn').addEventListener('click', async () => {
+    try {
+      const t = await navigator.clipboard.readText();
+      textInput.value = (textInput.value + t);
+      state.text = textInput.value;
+      updateCharCount(); renderPreview();
+      showToast('Pasted from clipboard');
+    } catch { showToast('Clipboard permission denied'); }
+  });
+  el('sampleBtn').addEventListener('click', () => {
+    textInput.value = `The Art of Simplicity
+
+Simplicity is the ultimate sophistication. In a world that constantly pushes for more — more features, more complexity, more noise — there is enormous power in doing less, but doing it exceptionally well.
+
+Chapter 1: The Beginning
+Every great journey begins with a single, deliberate step. When we strip away the unnecessary, what remains is essential. What remains is true.
+
+Chapter 2: The Craft
+Refining an idea is harder than inventing one. It requires patience, taste, and the courage to remove what feels precious but no longer serves.
+
+"Perfection is achieved not when there is nothing more to add, but when there is nothing left to take away." — Antoine de Saint-Exupéry
+
+Chapter 3: The Result
+When simplicity meets purpose, the outcome feels inevitable — as if it could not have been designed any other way. That is the mark of true craftsmanship.
+
+Thank you for reading.`;
+    state.text = textInput.value;
+    updateCharCount(); renderPreview();
+  });
+  el('fileInput').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+      textInput.value = ev.target.result;
+      state.text = textInput.value;
+      updateCharCount(); renderPreview();
+      showToast('File loaded');
+    };
+    r.readAsText(f);
+  });
+  el('resetBtn').addEventListener('click', () => {
+    if (!confirm('Reset all customization to defaults?')) return;
+    location.reload();
+  });
+
+  el('downloadBtn').addEventListener('click', downloadPDF);
+  el('printBtn').addEventListener('click', printPDF);
+
+  // ============ Build PDF ============
+  function buildPDF() {
+    const { w: pageW, h: pageH } = getPageDims();
+    const doc = new jsPDF({
+      orientation: state.orientation,
+      unit: 'mm',
+      format: state.pageSize
+    });
+
+    doc.setProperties({
+      title: state.title || 'Document',
+      author: state.author || 'Anonymous',
+      creator: 'TextForge'
+    });
+
+    // Background color (skip if white to reduce file size)
+    const hasBg = state.bgColor.toLowerCase() !== '#ffffff';
+
+    doc.setFont(state.fontFamily, state.fontStyle);
+    doc.setFontSize(state.fontSize);
+
+    const [tr, tg, tb] = hexToRgb(state.textColor);
+    const [br, bg, bb] = hexToRgb(state.bgColor);
+
+    const margin = state.margin;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2 - (state.headerText ? 8 : 0) - (state.footerText || state.pageNumbers ? 8 : 0);
+    const lineHeight = state.fontSize * 0.3528 * state.lineSpacing; // pt→mm approx
+
+    // Split by user newlines first, then wrap each paragraph
+    const paragraphs = (state.text || '').split('\n');
+    const allLines = [];
+    paragraphs.forEach(p => {
+      if (p === '') { allLines.push(''); return; }
+      const wrapped = doc.splitTextToSize(p, usableW);
+      wrapped.forEach(line => allLines.push(line));
+    });
+
+    // Paginate
+    const linesPerPage = Math.max(1, Math.floor(usableH / lineHeight));
+    const pages = [];
+    for (let i = 0; i < allLines.length; i += linesPerPage) {
+      pages.push(allLines.slice(i, i + linesPerPage));
+    }
+    if (pages.length === 0) pages.push(['']);
+
+    const totalPages = pages.length;
+
+    pages.forEach((lines, idx) => {
+      if (idx > 0) doc.addPage(state.pageSize, state.orientation);
+
+      if (hasBg) {
+        doc.setFillColor(br, bg, bb);
+        doc.rect(0, 0, pageW, pageH, 'F');
+      }
+
+      // Header
+      if (state.headerText) {
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont(state.fontFamily, 'normal');
+        doc.text(state.headerText, pageW / 2, margin / 2 + 3, { align: 'center' });
+      }
+
+      // Reset for body
+      doc.setFont(state.fontFamily, state.fontStyle);
+      doc.setFontSize(state.fontSize);
+      doc.setTextColor(tr, tg, tb);
+
+      const startY = margin + (state.headerText ? 5 : 0) + lineHeight;
+      lines.forEach((line, i) => {
+        const y = startY + i * lineHeight;
+        let x = margin;
+        const opts = {};
+        if (state.align === 'center') { x = pageW / 2; opts.align = 'center'; }
+        else if (state.align === 'right') { x = pageW - margin; opts.align = 'right'; }
+        else if (state.align === 'justify') {
+          // Only justify non-last lines of each paragraph and only if line is wrapped (not the final line)
+          const isLast = (i === lines.length - 1) || lines[i + 1] === '';
+          if (!isLast && line.trim()) {
+            opts.align = 'justify';
+            opts.maxWidth = usableW;
+          }
+        }
+        if (line) doc.text(line, x, y, opts);
+      });
+
+      // Footer
+      if (state.footerText || state.pageNumbers) {
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.setFont(state.fontFamily, 'normal');
+        if (state.footerText) doc.text(state.footerText, margin, pageH - margin / 2);
+        if (state.pageNumbers) {
+          doc.text(`Page ${idx + 1} of ${totalPages}`, pageW - margin, pageH - margin / 2, { align: 'right' });
+        }
+      }
+    });
+
+    // Password
+    if (state.password && state.passwordValue) {
+      // jsPDF supports encryption via options; we re-create with encryption
+      const encDoc = new jsPDF({
+        orientation: state.orientation,
+        unit: 'mm',
+        format: state.pageSize,
+        encryption: {
+          userPassword: state.passwordValue,
+          ownerPassword: state.passwordValue,
+          userPermissions: ['print', 'copy']
+        }
+      });
+      // Rebuild: copy pages from doc — jsPDF doesn't offer clone easily, so re-run buildPDF logic into encDoc.
+      // Simpler: return doc but with encryption applied at construction. We'll just rebuild here.
+      return buildPDFWithDoc(encDoc);
+    }
+
+    return doc;
+  }
+
+  function buildPDFWithDoc(doc) {
+    // Simplified re-build using the same state (mirrors buildPDF body)
+    const { w: pageW, h: pageH } = getPageDims();
+    doc.setProperties({ title: state.title || 'Document', author: state.author || 'Anonymous', creator: 'TextForge' });
+    const hasBg = state.bgColor.toLowerCase() !== '#ffffff';
+    doc.setFont(state.fontFamily, state.fontStyle);
+    doc.setFontSize(state.fontSize);
+    const [tr, tg, tb] = hexToRgb(state.textColor);
+    const [br, bg, bb] = hexToRgb(state.bgColor);
+    const margin = state.margin;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2 - (state.headerText ? 8 : 0) - (state.footerText || state.pageNumbers ? 8 : 0);
+    const lineHeight = state.fontSize * 0.3528 * state.lineSpacing;
+    const paragraphs = (state.text || '').split('\n');
+    const allLines = [];
+    paragraphs.forEach(p => {
+      if (p === '') { allLines.push(''); return; }
+      const wrapped = doc.splitTextToSize(p, usableW);
+      wrapped.forEach(line => allLines.push(line));
+    });
+    const linesPerPage = Math.max(1, Math.floor(usableH / lineHeight));
+    const pages = [];
+    for (let i = 0; i < allLines.length; i += linesPerPage) pages.push(allLines.slice(i, i + linesPerPage));
+    if (pages.length === 0) pages.push(['']);
+    const totalPages = pages.length;
+    pages.forEach((lines, idx) => {
+      if (idx > 0) doc.addPage(state.pageSize, state.orientation);
+      if (hasBg) { doc.setFillColor(br, bg, bb); doc.rect(0, 0, pageW, pageH, 'F'); }
+      if (state.headerText) {
+        doc.setFontSize(9); doc.setTextColor(120,120,120); doc.setFont(state.fontFamily, 'normal');
+        doc.text(state.headerText, pageW / 2, margin / 2 + 3, { align: 'center' });
+      }
+      doc.setFont(state.fontFamily, state.fontStyle); doc.setFontSize(state.fontSize); doc.setTextColor(tr, tg, tb);
+      const startY = margin + (state.headerText ? 5 : 0) + lineHeight;
+      lines.forEach((line, i) => {
+        const y = startY + i * lineHeight;
+        let x = margin; const opts = {};
+        if (state.align === 'center') { x = pageW / 2; opts.align = 'center'; }
+        else if (state.align === 'right') { x = pageW - margin; opts.align = 'right'; }
+        else if (state.align === 'justify') {
+          const isLast = (i === lines.length - 1) || lines[i + 1] === '';
+          if (!isLast && line.trim()) { opts.align = 'justify'; opts.maxWidth = usableW; }
+        }
+        if (line) doc.text(line, x, y, opts);
+      });
+      if (state.footerText || state.pageNumbers) {
+        doc.setFontSize(9); doc.setTextColor(120,120,120); doc.setFont(state.fontFamily, 'normal');
+        if (state.footerText) doc.text(state.footerText, margin, pageH - margin / 2);
+        if (state.pageNumbers) doc.text(`Page ${idx + 1} of ${totalPages}`, pageW - margin, pageH - margin / 2, { align: 'right' });
+      }
+    });
+    return doc;
+  }
+
+  function hexToRgb(hex) {
+    const c = hex.replace('#','');
+    const full = c.length === 3 ? c.split('').map(x => x+x).join('') : c;
+    return [parseInt(full.slice(0,2),16), parseInt(full.slice(2,4),16), parseInt(full.slice(4,6),16)];
+  }
+
+  function downloadPDF() {
+    try {
+      const doc = buildPDF();
+      const name = (state.fileName || 'document').replace(/\.pdf$/i, '') + '.pdf';
+      doc.save(name);
+      showToast('PDF downloaded 🎉');
+    } catch (err) {
+      console.error(err);
+      showToast('Error generating PDF');
+    }
+  }
+
+  function printPDF() {
+    try {
+      const doc = buildPDF();
+      doc.autoPrint();
+      const url = doc.output('bloburl');
+      window.open(url, '_blank');
+    } catch (err) { console.error(err); showToast('Error printing'); }
+  }
+
+  // ============ Preview (HTML) ============
+  function renderPreview() {
+    const { w: pageW, h: pageH } = getPageDims();
+    // Scale mm to px for on-screen preview
+    const containerW = preview.clientWidth - 32; // padding
+    const scale = Math.min(1, containerW / (pageW * 3.78)); // 1mm ≈ 3.78 px
+    const px = (mm) => mm * 3.78 * scale;
+
+    // Compute lines using a hidden jsPDF instance for accurate wrapping
+    const doc = new jsPDF({ orientation: state.orientation, unit: 'mm', format: state.pageSize });
+    doc.setFont(state.fontFamily, state.fontStyle);
+    doc.setFontSize(state.fontSize);
+    const margin = state.margin;
+    const usableW = pageW - margin * 2;
+    const usableH = pageH - margin * 2 - (state.headerText ? 8 : 0) - (state.footerText || state.pageNumbers ? 8 : 0);
+    const lineHeightMm = state.fontSize * 0.3528 * state.lineSpacing;
+
+    const paragraphs = (state.text || 'Start typing to see the preview...').split('\n');
+    const allLines = [];
+    paragraphs.forEach(p => {
+      if (p === '') { allLines.push(''); return; }
+      const wrapped = doc.splitTextToSize(p, usableW);
+      wrapped.forEach(line => allLines.push(line));
+    });
+    const linesPerPage = Math.max(1, Math.floor(usableH / lineHeightMm));
+    const pages = [];
+    for (let i = 0; i < allLines.length; i += linesPerPage) pages.push(allLines.slice(i, i + linesPerPage));
+    if (pages.length === 0) pages.push(['']);
+
+    const fontMap = { helvetica: 'Helvetica, Arial, sans-serif', times: '"Times New Roman", Times, serif', courier: '"Courier New", Courier, monospace' };
+    const cssFont = fontMap[state.fontFamily];
+    const weight = state.fontStyle.includes('bold') ? 700 : 400;
+    const italic = state.fontStyle.includes('italic') ? 'italic' : 'normal';
+
+    preview.innerHTML = '';
+    pages.forEach((lines, idx) => {
+      const pageEl = document.createElement('div');
+      pageEl.className = 'page';
+      pageEl.style.width = px(pageW) + 'px';
+      pageEl.style.height = px(pageH) + 'px';
+      pageEl.style.background = state.bgColor;
+
+      if (state.headerText) {
+        const h = document.createElement('div');
+        h.className = 'header';
+        h.textContent = state.headerText;
+        h.style.top = (px(margin) / 2) + 'px';
+        h.style.fontSize = Math.max(8, px(3.2)) + 'px';
+        pageEl.appendChild(h);
+      }
+
+      const content = document.createElement('div');
+      content.className = 'content';
+      content.style.position = 'absolute';
+      content.style.left = px(margin) + 'px';
+      content.style.right = px(margin) + 'px';
+      content.style.top = (px(margin) + (state.headerText ? px(5) : 0)) + 'px';
+      content.style.fontFamily = cssFont;
+      content.style.fontSize = px(state.fontSize * 0.3528) + 'px';
+      content.style.lineHeight = state.lineSpacing;
+      content.style.color = state.textColor;
+      content.style.fontWeight = weight;
+      content.style.fontStyle = italic;
+      content.style.textAlign = state.align;
+      content.textContent = lines.join('\n');
+      pageEl.appendChild(content);
+
+      if (state.footerText || state.pageNumbers) {
+        const f = document.createElement('div');
+        f.className = 'footer';
+        f.style.bottom = (px(margin) / 2) + 'px';
+        f.style.left = px(margin) + 'px';
+        f.style.right = px(margin) + 'px';
+        f.style.display = 'flex';
+        f.style.justifyContent = 'space-between';
+        f.style.fontSize = Math.max(8, px(3.2)) + 'px';
+        const left = document.createElement('span');
+        left.textContent = state.footerText || '';
+        const right = document.createElement('span');
+        right.textContent = state.pageNumbers ? `Page ${idx + 1} of ${pages.length}` : '';
+        f.appendChild(left); f.appendChild(right);
+        pageEl.appendChild(f);
+      }
+
+      preview.appendChild(pageEl);
+    });
+
+    el('pageCount').textContent = `${pages.length} page${pages.length > 1 ? 's' : ''}`;
+  }
+
+  // Re-render on resize
+  let resizeTO;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTO);
+    resizeTO = setTimeout(renderPreview, 100);
+  });
+
+  // Initial
+  updateCharCount();
+  renderPreview();
+</script>
+</body>
+</html>
